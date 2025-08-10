@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title id="titulo-loja">Carregando...</title>
+  <link rel="manifest" href="manifest.json" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --cor-principal: #27ae60; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: var(--fonte, 'Poppins', sans-serif); background: #f8f9fa; }
+    header { height: 200px; background: var(--cor-principal) url('https://dummyimage.com/1200x400/27ae60/FFFFFF&text=ENTREGA+F%C3%81CIL+-+SEU+PEDIDO+AGORA') center/cover no-repeat; }
+    .overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(39, 174, 96, 0.8); }
+    .header-content { position: relative; z-index: 2; text-align: center; padding: 40px 20px; color: white; }
+    #nome-loja { font-size: 1.8em; font-weight: 700; }
+    .horario { background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 30px; font-size: 0.9em; margin-top: 8px; }
+    .container { max-width: 1200px; margin: 20px auto; padding: 20px; }
+    #catalogo { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px; }
+    .card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    .card img { width: 100%; height: 140px; object-fit: cover; }
+    .card-content { padding: 14px; }
+    .card h3 { font-size: 1.1em; margin-bottom: 6px; }
+    .price { font-weight: bold; color: var(--cor-principal); }
+    .btn-add { display: block; width: 100%; padding: 10px; background: var(--cor-principal); color: white; border: none; border-radius: 8px; margin-top: 10px; cursor: pointer; }
+    #carrinho { position: fixed; bottom: 30px; right: 30px; background: var(--cor-principal); color: white; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.3); cursor: pointer; z-index: 1000; }
+    #modal-carrinho { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1001; align-items: center; justify-content: center; }
+    #modal-carrinho.show { display: flex; }
+    .modal-content { background: white; width: 90%; max-width: 500px; border-radius: 16px; padding: 20px; }
+  </style>
+</head>
+<body>
+  <header><div class="overlay"></div><div class="header-content"><h1 id="nome-loja">Carregando...</h1><div class="horario" id="horario-loja">Horário não definido</div></div></header>
+  <div class="container"><div id="catalogo"></div></div>
+  <div id="carrinho">0</div>
+  <div id="modal-carrinho"><div class="modal-content"><h2>Seu Pedido</h2><ul id="carrinho-itens"></ul><p><strong>Total: <span id="total-final">R$ 0,00</span></strong></p><form id="form-pedido"><label>Nome</label><input type="text" id="cliente-nome" required><label>Telefone</label><input type="tel" id="cliente-tel" required><label>Endereço</label><textarea id="cliente-endereco" required></textarea><label>Pagamento</label><select id="pagamento"><option>Dinheiro</option><option>Pix</option><option>Cartão na entrega</option></select><button type="button" onclick="enviarPedido()" style="width:100%; padding:12px; background:#27ae60; color:white; border:none; border-radius:8px; margin-top:10px;">Enviar pelo WhatsApp</button></form><button id="fechar-carrinho" style="width:100%; padding:10px; background:#999; color:white; border:none; border-radius:8px; margin-top:10px;">Fechar</button></div></div>
+  <script src="js/speech.js"></script>
+  <script>
+    let carrinho = [];
+    let produtos = [];
+    let lojaNome = "Minha Loja";
+    let corPrincipal = "#27ae60";
+    let fonte = "'Poppins', sans-serif";
+    let horario = "";
+    let imagemCapa = "https://dummyimage.com/1200x400/27ae60/FFFFFF&text=ENTREGA+F%C3%81CIL+-+SEU+PEDIDO+AGORA";
+
+    async function carregarProdutos() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let loja = urlParams.get('loja') || 'exemplo';
+      loja = loja.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      try {
+        const res = await fetch(`assets/produtos-\${loja}.json`);
+        if (!res.ok) throw new Error("Arquivo não encontrado");
+        const data = await res.json();
+        produtos = data.produtos || [];
+        lojaNome = data.nome || "Loja";
+        corPrincipal = data.cor || "#27ae60";
+        fonte = data.fonte || "'Poppins', sans-serif";
+        horario = data.horario || "";
+        imagemCapa = data.imagemCapa || imagemCapa;
+
+        document.documentElement.style.setProperty('--cor-principal', corPrincipal);
+        document.documentElement.style.setProperty('--fonte', fonte);
+        document.getElementById('nome-loja').textContent = lojaNome;
+        document.getElementById('horario-loja').textContent = horario || "Horário não informado";
+        document.querySelector('header').style.background = \`\${corPrincipal} url('\${imagemCapa}') center/cover no-repeat\`;
+        document.title = lojaNome;
+
+        if (produtos.length === 0) throw new Error("Nenhum produto encontrado");
+        exibirProdutos();
+      } catch (e) {
+        document.body.innerHTML = \`
+          <div style="text-align: center; padding: 60px; color: #e74c3c; font-family: 'Poppins', sans-serif;">
+            <h2>⚠️ Loja não encontrada</h2>
+            <p><strong>Erro:</strong> \${e.message}</p>
+            <p>Verifique:</p>
+            <ul style="text-align: left; max-width: 400px; margin: 20px auto;">
+              <li>O nome da loja: <strong>\${loja}</strong></li>
+              <li>Se o arquivo <strong>produtos-\${loja}.json</strong> está em /assets</li>
+              <li>Se você fez <strong>Commit + Push</strong> no GitHub Desktop</li>
+            </ul>
+            <a href="index.html" style="color: #27ae60;">← Voltar ao início</a>
+          </div>
+        \`;
+      }
+    }
+
+    function exibirProdutos() {
+      const container = document.getElementById('catalogo');
+      container.innerHTML = '';
+      produtos.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = \`
+          <img src="\${p.imagem || 'assets/logo-placeholder.png'}" alt="\${p.nome}">
+          <div class="card-content">
+            <h3>\${p.nome}</h3>
+            <div class="price">R\$ \${p.preco.toFixed(2)}</div>
+            <button onclick="adicionarAoCarrinho(\${p.id})" class="btn-add">+ Adicionar</button>
+          </div>
+        \`;
+        container.appendChild(div);
+      });
+    }
+
+    function adicionarAoCarrinho(id) {
+      const produto = produtos.find(p => p.id === id);
+      const item = carrinho.find(i => i.id === id);
+      if (item) { item.quantidade++; } else { carrinho.push({ ...produto, quantidade: 1 }); }
+      atualizarCarrinho();
+    }
+
+    function atualizarCarrinho() {
+      const badge = document.getElementById('carrinho');
+      badge.textContent = carrinho.reduce((sum, item) => sum + item.quantidade, 0);
+    }
+
+    document.getElementById('carrinho')?.addEventListener('click', () => {
+      document.getElementById('modal-carrinho').classList.add('show');
+      exibirItensCarrinho();
+    });
+
+    document.getElementById('fechar-carrinho')?.addEventListener('click', () => {
+      document.getElementById('modal-carrinho').classList.remove('show');
+    });
+
+    function exibirItensCarrinho() {
+      const lista = document.getElementById('carrinho-itens');
+      lista.innerHTML = '';
+      let total = 0;
+      carrinho.forEach(item => {
+        const li = document.createElement('li');
+        const subtotal = item.preco * item.quantidade;
+        total += subtotal;
+        li.innerHTML = \`\${item.nome} × \${item.quantidade} = R\$ \${subtotal.toFixed(2)}\`;
+        lista.appendChild(li);
+      });
+      document.getElementById('total-final').textContent = \`R\$ \${total.toFixed(2)}\`;
+    }
+
+    function enviarPedido() {
+      const nome = document.getElementById('cliente-nome').value;
+      const tel = document.getElementById('cliente-tel').value;
+      const endereco = document.getElementById('cliente-endereco').value;
+      const pagamento = document.getElementById('pagamento').value;
+
+      if (!nome || !tel || !endereco) {
+        alert("Preencha todos os campos!");
+        return;
+      }
+
+      let msg = \`*NOVO PEDIDO - \${lojaNome}*\n\`;
+      msg += \`Cliente: \${nome}\nTel: \${tel}\nEnd: \${endereco}\n\n\`;
+      carrinho.forEach(item => {
+        msg += \`- \${item.nome} × \${item.quantidade} = R\$ \${(item.preco * item.quantidade).toFixed(2)}\\n\`;
+      });
+      msg += \`\\n*Total: R\$ \${carrinho.reduce((a,b) => a + b.preco * b.quantidade, 0).toFixed(2)}*\n\`;
+      msg += \`*Pagamento: \${pagamento}*\n\`;
+
+      const url = \`https://wa.me/5571996349789?text=\${encodeURIComponent(msg)}\`;
+      window.open(url, '_blank');
+
+      const pedido = {
+        id: Date.now(),
+        nome, tel, endereco, itens: [...carrinho],
+        total: carrinho.reduce((a,b) => a + b.preco * b.quantidade, 0),
+        pagamento, status: "Recebido",
+         new Date().toLocaleString('pt-BR')
+      };
+
+      const pedidos = JSON.parse(localStorage.getItem('pedidos-' + lojaNome) || '[]');
+      pedidos.push(pedido);
+      localStorage.setItem('pedidos-' + lojaNome, JSON.stringify(pedidos));
+
+      new Audio('assets/sounds/novo.mp3').play();
+      falar(\`Você tem um novo pedido. Cliente: \${nome}, total: R\$ \${pedido.total.toFixed(2)}\`);
+
+      document.getElementById('modal-carrinho').classList.remove('show');
+      alert("✅ Pedido enviado! Em breve entraremos em contato.");
+      window.location.reload();
+    }
+
+    window.onload = carregarProdutos;
+    atualizarCarrinho();
+  </script>
+</body>
+</html>

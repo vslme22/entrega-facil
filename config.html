@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Criar Loja - Entrega Fácil</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Poppins', sans-serif; background: #f8f9fa; padding: 20px; }
+    .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); }
+    h1 { color: #27ae60; text-align: center; margin-bottom: 20px; }
+    label { display: block; margin: 16px 0 6px; font-weight: 500; }
+    input, textarea, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; }
+    .produto { background: #f8f9fa; padding: 16px; margin: 12px 0; border-radius: 12px; }
+    .btn { padding: 14px; background: #27ae60; color: white; border: none; border-radius: 8px; cursor: pointer; margin-top: 20px; width: 100%; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 Criar Loja</h1>
+    <form id="form-loja">
+      <label>Nome da Loja</label>
+      <input type="text" id="nome" required placeholder="Ex: Padaria do Zé">
+
+      <label>WhatsApp (com DDD)</label>
+      <input type="text" id="whatsapp" required placeholder="Ex: 5511999998888">
+
+      <label>Endereço</label>
+      <textarea id="endereco" required placeholder="Ex: Rua das Flores, 123"></textarea>
+
+      <label>Chave Pix (opcional)</label>
+      <input type="text" id="pix" placeholder="Ex: chave@pix.com">
+
+      <h3>🎨 Personalização</h3>
+      <label>Cor Principal</label>
+      <input type="color" id="cor-principal" value="#27ae60">
+
+      <label>Fonte</label>
+      <select id="fonte">
+        <option value="'Poppins', sans-serif">Poppins</option>
+        <option value="'Roboto', sans-serif">Roboto</option>
+      </select>
+
+      <label>Horário de Funcionamento</label>
+      <textarea id="horario" placeholder="Ex: Seg a Sex: 7h às 19h
+Sábado: 7h às 13h"></textarea>
+
+      <label>URL da Imagem de Capa</label>
+      <input type="url" id="imagem-capa" value="https://dummyimage.com/1200x400/27ae60/FFFFFF&text=ENTREGA+F%C3%81CIL+-+SEU+PEDIDO+AGORA">
+
+      <h3>📦 Produtos</h3>
+      <div id="produtos-container"></div>
+      <button type="button" id="add-produto" style="background:#3498db; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer;">
+        + Adicionar Produto
+      </button>
+
+      <label>Senha do Painel</label>
+      <input type="password" id="senha" required placeholder="Ex: 1234">
+
+      <button type="submit" class="btn">💾 Salvar Loja</button>
+    </form>
+  </div>
+
+  <script>
+    // 🔐 Proteção por senha
+    const senhaMaster = "e42n9999";
+    const senha = prompt("🔐 Senha para criar loja:");
+    if (senha !== senhaMaster) {
+      alert("❌ Senha incorreta!");
+      document.body.innerHTML = "<h2 style='text-align:center; color:#e74c3c; margin-top:50px;'>Acesso negado</h2>";
+      throw new Error("Acesso negado");
+    }
+
+    const container = document.getElementById('produtos-container');
+    document.getElementById('add-produto').addEventListener('click', () => {
+      const div = document.createElement('div');
+      div.className = 'produto';
+      div.innerHTML = `
+        <input type="text" placeholder="Nome do produto" required>
+        <input type="number" placeholder="Preço" step="0.01" required>
+        <input type="url" placeholder="URL da imagem (opcional)">
+        <button type="button" onclick="this.parentElement.remove()" style="background:#e74c3c; color:white; border:none; padding:6px 12px; border-radius:6px;">🗑️ Remover</button>
+      `;
+      container.appendChild(div);
+    });
+
+    document.getElementById('add-produto').click();
+
+    document.getElementById('form-loja').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const nome = document.getElementById('nome').value.trim();
+      const whatsapp = document.getElementById('whatsapp').value;
+      const endereco = document.getElementById('endereco').value;
+      const senha = document.getElementById('senha').value;
+
+      if (!nome || !whatsapp || !endereco || !senha) {
+        alert("Preencha todos os campos obrigatórios!");
+        return;
+      }
+
+      const produtos = [];
+      document.querySelectorAll('.produto').forEach((item, i) => {
+        const nomeP = item.querySelector('input:nth-child(1)').value;
+        const preco = item.querySelector('input:nth-child(2)').value;
+        if (nomeP && preco) {
+          produtos.push({
+            id: i + 1,
+            nome: nomeP,
+            preco: parseFloat(preco),
+            imagem: item.querySelector('input:nth-child(3)').value || null
+          });
+        }
+      });
+
+      if (produtos.length === 0) {
+        alert("Adicione pelo menos 1 produto.");
+        return;
+      }
+
+      const data = {
+        nome,
+        whatsapp,
+        endereco,
+        pix: document.getElementById('pix').value,
+        senha,
+        produtos,
+        cor: document.getElementById('cor-principal').value,
+        fonte: document.getElementById('fonte').value,
+        horario: document.getElementById('horario').value,
+        imagemCapa: document.getElementById('imagem-capa').value
+      };
+
+      const jsonBlob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const jsonUrl = URL.createObjectURL(jsonBlob);
+      const a = document.createElement('a');
+      a.href = jsonUrl;
+      a.download = `produtos-${nome.toLowerCase().replace(/[^a-z0-9]/g, '')}.json`;
+      a.click();
+
+      alert(`✅ Loja criada! Arquivo baixado. Use: loja.html?loja=${nome.toLowerCase().replace(/[^a-z0-9]/g, '')}`);
+    });
+  </script>
+</body>
+</html>
