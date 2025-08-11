@@ -1,8 +1,0 @@
-{
-  "name": "Entrega Fácil",
-  "short_name": "Entrega Fácil",
-  "start_url": "/index.html",
-  "display": "standalone",
-  "background_color": "#e8f5e8",
-  "theme_color": "#27ae60"
-}
